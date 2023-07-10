@@ -2,7 +2,7 @@ import {useLoaderData} from '@remix-run/react';
 import {json} from '@shopify/remix-oxygen';
 import {Image} from '@shopify/hydrogen';
 import {useState, useEffect} from 'react';
-import {queryStorefrontApi, fetchSelectedVariants} from 'lib/storefrontApi';
+import {queryStorefrontApi, fetchSelectedVariants} from '~/lib/storefrontApi';
 import {PillButtonGroup} from '../components/PillButtonGroup';
 import {PrintJson} from '../components/PrintJson';
 import {EngravingOption} from '~/components/EngravingOption';
@@ -35,6 +35,7 @@ export async function loader({params, context}) {
 export default function ProductHandle() {
   const {product, bundleConfiguration} = useLoaderData();
   const [selectedVariants, setSelectedVariants] = useState([]);
+  const [engravingVariant, setEngravingVariant] = useState(null);
   const [selectedOptions, setSelectedOptions] = useState(() => {
     const options = {};
 
@@ -88,7 +89,7 @@ export default function ProductHandle() {
   async function createCart() {
     if (!isValidConfiguration) return;
     // create a random bundle id
-    const bundleId = Math.random().toString(36).substring(12);
+    const bundleId = uuidv4();
     // create a line item for each selected variant
     const lines = selectedVariants.map((selectedVariant) => {
       return {
@@ -106,6 +107,31 @@ export default function ProductHandle() {
         ],
       };
     });
+    // add the engraving variant if it exists
+    if (engravingVariant) {
+      lines.push({
+        merchandiseId: engravingVariant.variantId,
+        quantity: 1,
+        attributes: [
+          {
+            key: 'bundleId',
+            value: bundleId,
+          },
+          {
+            key: 'lineItemId',
+            value: engravingVariant.lineItemId,
+          },
+          {
+            key: 'engraving1',
+            value: engravingVariant.engraving1,
+          },
+          {
+            key: 'baseEngraving',
+            value: engravingVariant.baseEngraving,
+          },
+        ],
+      });
+    }
     // create the cart
     const {cartCreate} = await queryStorefrontApi(CREATE_CART_MUTATION, {
       lines,
@@ -148,7 +174,10 @@ export default function ProductHandle() {
                   {title}
                 </h2>
                 {title === 'Engravings' ? (
-                  'Engravings'
+                  <EngravingOption
+                    lineItem={lineItem}
+                    setEngravingVariant={setEngravingVariant}
+                  />
                 ) : (
                   <PillButtonGroup
                     options={options}
@@ -211,3 +240,12 @@ mutation CartCreate($lines: [CartLineInput!]!) {
   }
 }
 `;
+
+function uuidv4() {
+  return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, (c) =>
+    (
+      c ^
+      (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))
+    ).toString(16),
+  );
+}
