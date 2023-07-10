@@ -38,6 +38,7 @@ export default {
         storeDomain: env.PUBLIC_STORE_DOMAIN,
         storefrontId: env.PUBLIC_STOREFRONT_ID,
         storefrontHeaders: getStorefrontHeaders(request),
+        storefrontApiVersion: 'unstable',
       });
 
       /**
